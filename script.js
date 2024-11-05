@@ -8,8 +8,11 @@ display.addEventListener("keydown", (e) => {
         appendNumber(e.key);
     } else if (e.key == "+" || e.key == "-" || e.key == "*" || e.key == "/") {
         operation(e.key);
-    }
-    else if (e.key == "Enter" || e.key == "=") {
+    } else if (e.key === ".") { // Decimal point
+        appendDecimal();
+    } else if (e.key === "^") { // Power
+        operation("^");
+    } else if (e.key == "Enter" || e.key == "=") {
         calculate();
     } else if (e.key === "Escape") { // Esc to clean
         clearDisplay();
@@ -24,7 +27,19 @@ function appendNumber(number) {
     display.value = currentValue;
 }
 
+function appendDecimal() {
+    if (!allowNextInput) clearDisplay(); // Reset display after a result
+    // Prevent multiple decimals
+    if (!currentValue.includes('.')) {
+        currentValue += currentValue === '' ? '0.' : '.';
+        display.value = currentValue;
+    }
+}
+
 function operation(op) {
+    if (currentValue === '' || isNaN(currentValue.slice(-1))) {
+        return;
+    }
     if (currentOperation) calculate(); //Calculate if there is an operation in course
     currentOperation = op;
     currentValue += ' ' + op + ' ';
@@ -33,18 +48,25 @@ function operation(op) {
 }
 
 function calculate() {
-    console.log(eval(currentValue));
     try {
         let calculation = currentValue;
-        let result = eval(currentValue);
-        display.value = result;
-        currentValue = result.toString();
+        if (currentValue.includes('^')) {
+            const [base, exponent] = currentValue.split(' ^ ');
+            const result = Math.pow(parseFloat(base), parseFloat(exponent));
+            display.value = parseFloat(result.toFixed(4));
+            currentValue = result.toString();
+            addToHistory(`${base} ^ ${exponent}`, result);
+        } else {
+            let result = parseFloat(eval(currentValue).toFixed(4));
+            display.value = result;
+            addToHistory(calculation, display.value);
+            currentValue = result.toString();
+        }
         currentOperation = "";
-        addToHistory(calculation, result);
     } catch (error) {
         display.value = 'Error';
     }
-    allowNextInput = false; //Inhabilitates the entry after calculation
+    allowNextInput = false; //Disable further input until resets
 }
 
 function clearDisplay() {
@@ -59,14 +81,35 @@ function deleteLastEntry() {
     display.value = currentValue;
 }
 
+function calculatePercentage() {
+    if (currentValue) {
+        currentValue = (parseFloat(currentValue) / 100).toString();
+        display.value = parseFloat(currentValue).toString();
+        addToHistory(`${originalValue}%`, currentValue);
+    }
+}
+
+function calculateSquareRoot() {
+    if (currentValue) {
+        let originalValue = currentValue;
+        let result = Math.sqrt(parseFloat(currentValue));
+        currentValue = result.toFixed(4).toString();
+        display.value = currentValue;
+        addToHistory(`√${originalValue}`, result);
+    }
+}
+
 function addToHistory(calculation, result) {
     const history = document.getElementById("history");
 
     if (display.value === '') return;
 
     const li = document.createElement('li');
-    li.textContent = calculation + " = " + result;
+    let text = calculation + " = " + result;
+    li.textContent = text;
     history.appendChild(li);
+    let lastOperation = document.getElementById("lastOperation");
+    lastOperation.textContent = text;
 }
 
 function showTab(tab) {
@@ -88,3 +131,11 @@ function showTab(tab) {
         historyButton.classList.add('active-tab');
     }
 }
+
+function toggleSign() {
+    if (currentValue) {
+        currentValue = currentValue.startsWith('-') ? currentValue.slice(1) : '-' + currentValue;
+        display.value = currentValue;
+    }
+}
+
